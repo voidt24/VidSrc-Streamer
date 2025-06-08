@@ -70,7 +70,7 @@ def delete_stream_from_database(imdb_id):
     cursor = conn.cursor()
     cursor.execute('''DELETE FROM stream_cache WHERE imdb_id=?''', (imdb_id,))
     conn.commit()
-    conn.close()'
+    conn.close()
     
 @app.get("/")
 def health_check():
@@ -117,7 +117,3 @@ async def get_stream_content(
     except Exception as e:
         logging.error(f"Unexpected error for IMDb ID {imdb_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("m3u8parser:app", host="0.0.0.0", port=8000, reload=True)
