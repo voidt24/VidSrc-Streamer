@@ -7,6 +7,7 @@ import os
 import requests
 import time
 import sqlite3
+import traceback
 
 app = FastAPI()
 
@@ -81,14 +82,29 @@ async def get_stream_content(
     imdb_id: str,
     vse: VidSrcExtractor = Depends(get_vidsrc_extractor),
 ):
-
     logging.info(f"📌 Stream request started for IMDb ID: {imdb_id}")
+
+    # 1. Intentar recuperar desde caché
+    cached_stream = get_stream_from_database(imdb_id)
+    if cached_stream:
+        try:
+            response = requests.head(cached_stream, timeout=5)
+            if response.status_code == 200:
+                response = requests.get(cached_stream, timeout=10)
+                return Response(content=response.content, media_type="text/plain")
+            else:
+                logging.warning("Cached stream invalid. Removing from DB.")
+                delete_stream_from_database(imdb_id)
+        except requests.RequestException as e:
+            logging.warning(f"Error accessing cached stream: {e}")
+            delete_stream_from_database(imdb_id)
+
+    # 2. Si no se puede usar caché, obtener stream nuevo
     try:
         stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
         logging.info(f"🔍 get_vidsrc_stream returned: {stream_url}, subtitle: {subtitle}")
 
         if not stream_url:
-            logging.warning(f"No stream found for IMDb ID: {imdb_id}")
             raise HTTPException(status_code=404, detail="Stream not found")
 
         response = requests.get(stream_url, timeout=10)
@@ -96,44 +112,10 @@ async def get_stream_content(
 
         insert_stream(imdb_id, stream_url)
         return Response(content=response.content, media_type="text/plain")
+
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
         logging.error(f"❌ Error in /stream: {e}")
         logging.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal server error")
-        
-    cached_stream = get_stream_from_database(imdb_id)
-    if cached_stream:
-        try:
-            response = requests.head(cached_stream)
-            if response.status_code == 200:
-                response = requests.get(cached_stream)
-                return Response(content=response.content, media_type="text/plain")
-            else:
-                # Remove the invalid entry from the database
-                delete_stream_from_database(imdb_id)
-        except requests.RequestException:
-            # Ignore errors and proceed with fetching a new URL
-            pass
-
-    try:
-        # Fetch the stream URL from VidSrcExtractor
-        stream_url, _ = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
-
-        if not stream_url:
-            logging.warning(f"Stream not found for IMDb ID: {imdb_id}")
-            raise HTTPException(status_code=404, detail="Stream not found")
-
-        response = requests.get(stream_url)
-        response.raise_for_status()
-
-        # Cache the stream URL
-        insert_stream(imdb_id, stream_url)
-
-        return Response(content=response.content, media_type="text/plain")
-
-    except requests.RequestException as e:
-        logging.error(f"Error fetching stream content for IMDb ID {imdb_id}: {e}")
-        raise HTTPException(status_code=500, detail="Error fetching stream content")
-    except Exception as e:
-        logging.error(f"Unexpected error for IMDb ID {imdb_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
