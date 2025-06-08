@@ -103,7 +103,7 @@ async def get_stream_content(
     try:
         # stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
         # stream_url, subtitle = vse.get_vidsrc_stream("2Embed", "movie", imdb_id, "eng", None, None)
-       stream_url, subtitle = vse.get_vidsrc_stream("Superembed", "movie", imdb_id, "eng", None, None)
+        stream_url, subtitle = vse.get_vidsrc_stream("Superembed", "movie", imdb_id, "eng", None, None)
        # stream_url, subtitle = vse.get_vidsrc_stream("CloudStream Pro", "movie", imdb_id, "eng", None, None)
 
         logging.info(f"🔍 get_vidsrc_stream returned: {stream_url}, subtitle: {subtitle}")
