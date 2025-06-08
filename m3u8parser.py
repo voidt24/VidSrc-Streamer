@@ -70,8 +70,11 @@ def delete_stream_from_database(imdb_id):
     cursor = conn.cursor()
     cursor.execute('''DELETE FROM stream_cache WHERE imdb_id=?''', (imdb_id,))
     conn.commit()
-    conn.close()
-
+    conn.close()'
+    
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
 
 @app.get("/stream/{imdb_id}", response_class=Response)
 async def get_stream_content(
