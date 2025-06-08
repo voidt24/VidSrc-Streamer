@@ -81,6 +81,26 @@ async def get_stream_content(
     imdb_id: str,
     vse: VidSrcExtractor = Depends(get_vidsrc_extractor),
 ):
+
+    logging.info(f"📌 Stream request started for IMDb ID: {imdb_id}")
+    try:
+        stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
+        logging.info(f"🔍 get_vidsrc_stream returned: {stream_url}, subtitle: {subtitle}")
+
+        if not stream_url:
+            logging.warning(f"No stream found for IMDb ID: {imdb_id}")
+            raise HTTPException(status_code=404, detail="Stream not found")
+
+        response = requests.get(stream_url, timeout=10)
+        logging.info(f"✅ Stream fetch status: {response.status_code}")
+
+        insert_stream(imdb_id, stream_url)
+        return Response(content=response.content, media_type="text/plain")
+    except Exception as e:
+        logging.error(f"❌ Error in /stream: {e}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Internal server error")
+        
     cached_stream = get_stream_from_database(imdb_id)
     if cached_stream:
         try:
