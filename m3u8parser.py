@@ -101,7 +101,8 @@ async def get_stream_content(
 
     # 2. Si no se puede usar caché, obtener stream nuevo
     try:
-        stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
+        # stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
+        stream_url, subtitle = vse.get_vidsrc_stream("2Embed", "movie", imdb_id, "eng", None, None)
         logging.info(f"🔍 get_vidsrc_stream returned: {stream_url}, subtitle: {subtitle}")
 
         if not stream_url:
