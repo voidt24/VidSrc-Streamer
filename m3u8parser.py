@@ -84,7 +84,7 @@ async def get_stream_content(
 ):
     logging.info(f"📌 Stream request started for IMDb ID: {imdb_id}")
 
-    # 1. Intentar recuperar desde caché
+    # Intentar recuperar desde caché
     cached_stream = get_stream_from_database(imdb_id)
     if cached_stream:
         try:
@@ -99,22 +99,35 @@ async def get_stream_content(
             logging.warning(f"Error accessing cached stream: {e}")
             delete_stream_from_database(imdb_id)
 
-    # 2. Si no se puede usar caché, obtener stream nuevo
+    # Obtener stream nuevo
     try:
-        # stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
-        # stream_url, subtitle = vse.get_vidsrc_stream("2Embed", "movie", imdb_id, "eng", None, None)
-        stream_url, subtitle = vse.get_vidsrc_stream("Superembed", "movie", imdb_id, "eng", None, None)
-       # stream_url, subtitle = vse.get_vidsrc_stream("CloudStream Pro", "movie", imdb_id, "eng", None, None)
-
+        stream_url, subtitle = vse.get_vidsrc_stream("VidSrc PRO", "movie", imdb_id, "eng", None, None)
         logging.info(f"🔍 get_vidsrc_stream returned: {stream_url}, subtitle: {subtitle}")
 
         if not stream_url:
             raise HTTPException(status_code=404, detail="Stream not found")
 
+        # Aquí hacemos la petición real al stream_url para inspeccionar
         response = requests.get(stream_url, timeout=10)
-        logging.info(f"✅ Stream fetch status: {response.status_code}")
 
+        # Logs para inspeccionar la respuesta
+        logging.info(f"✅ Stream fetch status: {response.status_code}")
+        content_type = response.headers.get("Content-Type")
+        logging.info(f"Content-Type: {content_type}")
+
+        # Imprimir primeros 500 caracteres del contenido (útil para m3u8, que es texto)
+        snippet = response.text[:500] if response.text else "<No content>"
+        logging.info(f"Content snippet:\n{snippet}")
+
+        # Guardar contenido recibido en archivo para inspección manual
+        with open("stream_output.m3u8", "wb") as f:
+            f.write(response.content)
+        logging.info("Stream content saved to 'stream_output.m3u8'")
+
+        # Insertar en caché
         insert_stream(imdb_id, stream_url)
+
+        # Devolver la respuesta al cliente
         return Response(content=response.content, media_type="text/plain")
 
     except HTTPException as http_exc:
@@ -123,3 +136,4 @@ async def get_stream_content(
         logging.error(f"❌ Error in /stream: {e}")
         logging.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal server error")
+
